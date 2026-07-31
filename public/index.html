@@ -165,6 +165,8 @@
         .opportunity-card:active { cursor: grabbing; }
         .opportunity-card.dragging { opacity: 0.4; }
         .opportunity-card.drag-over { border-top: 3px solid var(--primary-light); }
+        .opportunity-card--warning { border-color: #fac775; border-left-color: var(--warning); background: #fffaf0; }
+        .opportunity-card--danger { border-color: #f7c1c1; border-left-color: var(--danger); background: #fcebeb; }
 
         .opportunity-header {
             display: flex;
@@ -328,6 +330,12 @@
             padding: 2px 5px; border-radius: 4px; display: inline-block; margin-top: 2px;
         }
 
+        .assigned-tag {
+            font-size: 0.75rem; color: #7e22ce; background: #f3e8ff;
+            padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 2px;
+            font-weight: 600;
+        }
+
         .switch-container {
             display: flex; align-items: center; justify-content: space-between;
             background: #f8fafc; padding: 12px; border-radius: 8px;
@@ -489,7 +497,10 @@
                 <div class="card-container" style="margin-bottom: 0;">
                     <div class="section-title">
                         <span>⚡ Radar de Encaixes <span id="panelOppCountBadge" style="display:none;" class="opp-alert-badge">0</span></span>
-                        <button class="btn" onclick="openOppModal()">+ Novo</button>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                          <select id="oppSpecialtyFilter" onchange="renderOpportunities()" style="width: 160px; padding: 6px;"><option value="all">Todas especialidades</option></select>
+                          <button class="btn" onclick="openOppModal()">+ Novo</button>
+                        </div>
                     </div>
                     <div class="opportunity-list" id="opportunityListContainer" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropOpportunity(event)"></div>
                 </div>
@@ -516,22 +527,7 @@
                         <div style="font-size: 0.8rem; color: var(--text-muted);" id="patientCountLabel"></div>
                     </div>
 
-                    <div class="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th style="width: 120px;">Posição & Arrastar</th>
-                                    <th>Paciente / Contato</th>
-                                    <th>Início / Origem</th>
-                                    <th>Especialidade & Fase</th>
-                                    <th>Radiografia / Exame</th>
-                                    <th>Próxima Consulta</th>
-                                    <th>Observações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="patientTableBody" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropPatient(event)"></tbody>
-                        </table>
-                    </div>
+                    <div id="patientBlocksContainer"></div>
                 </div>
             </div>
         </div>
@@ -583,6 +579,12 @@
                 <div id="settingsSpecialtiesList" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; background: #f8fafc;"></div>
             </div>
 
+            <div style="margin-top: 20px;">
+                <h3 style="font-size: 1rem; color: var(--primary); margin-bottom: 10px;">Destaque de Tempo de Espera (Radar de Encaixes)</h3>
+                <div class="form-group"><label>Alerta amarelo após (horas)</label><input type="text" id="settingWarningHours"></div>
+                <div class="form-group"><label>Alerta vermelho após (horas)</label><input type="text" id="settingDangerHours"></div>
+            </div>
+
             <button type="button" class="btn btn-secondary" style="width: 100%; margin-top: 20px;" onclick="closeSettingsModal()">Salvar e Fechar</button>
         </div>
     </div>
@@ -630,12 +632,15 @@
     <div class="modal" id="oppModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Adicionar Encaixe</h2>
+                <h2 id="oppModalTitle">Adicionar Encaixe</h2>
                 <button class="close-btn" onclick="closeOppModal()">&times;</button>
             </div>
             <form onsubmit="saveOpportunity(event)">
+                <input type="hidden" id="oppId">
                 <div class="form-group"><label>Nome</label><input type="text" id="oppName" required></div>
                 <div class="form-group"><label>Telefone</label><input type="text" id="oppPhone" required></div>
+                <div class="form-group"><label>Especialidade</label><select id="oppSpecialty" required></select></div>
+                <div class="form-group"><label>Data/Hora de entrada</label><input type="datetime-local" id="oppCreatedAt" required></div>
                 <div class="form-group"><label>Obs</label><textarea id="oppNotes" rows="2"></textarea></div>
                 <button type="submit" class="btn" style="width: 100%;">Salvar</button>
             </form>
@@ -654,6 +659,13 @@
                 <div class="form-group"><label>Nome do Paciente</label><input type="text" id="patName" required></div>
                 <div class="form-group"><label>Telefone / WhatsApp</label><input type="text" id="patPhone" required></div>
                 <div class="form-group"><label>Origem / Indicação</label><select id="patSource"><option value="Dr. Elizeu">Dr. Elizeu</option><option value="Dr. Lucas">Dr. Lucas</option><option value="Recepção">Recepção</option></select></div>
+                <div class="form-group">
+                  <label>Direcionado para</label>
+                  <select id="patAssignedTo">
+                    <option value="doctor_elizeu">Dr. Elizeu</option>
+                    <option value="doctor_lucas">Dr. Lucas Domingues</option>
+                  </select>
+                </div>
                 <div class="form-group"><label>Especialidade</label><select id="patSpecialty" onchange="updatePhaseOptions()" required></select></div>
                 <div class="form-group"><label>Fase do Tratamento</label><select id="patPhase" required></select></div>
                 <div class="form-group">
@@ -691,6 +703,7 @@
         let specialtiesConfig = [];
         let opportunities = [];
         let patients = [];
+        let appSettings = { waitWarningHours: 24, waitDangerHours: 48 };
 
         // ---------------------------------------------------------------
         // Conexão - indicador visual
@@ -759,13 +772,25 @@
         // ---------------------------------------------------------------
         function openSettingsModal() {
             document.getElementById('soundToggleSetting').checked = chatSoundEnabled;
+            document.getElementById('settingWarningHours').value = appSettings.waitWarningHours;
+            document.getElementById('settingDangerHours').value = appSettings.waitDangerHours;
             renderSettingsSpecialties();
             document.getElementById('settingsModal').style.display = 'flex';
         }
-        function closeSettingsModal() {
+        async function closeSettingsModal() {
+            const warningHours = Number(document.getElementById('settingWarningHours').value) || appSettings.waitWarningHours;
+            const dangerHours = Number(document.getElementById('settingDangerHours').value) || appSettings.waitDangerHours;
+            if (dangerHours <= warningHours) {
+                alert('O limite vermelho deve ser maior que o limite amarelo.');
+                return;
+            }
+            if (warningHours !== appSettings.waitWarningHours || dangerHours !== appSettings.waitDangerHours) {
+                await api('/settings', { method: 'PUT', body: JSON.stringify({ waitWarningHours: warningHours, waitDangerHours: dangerHours }) });
+            }
             document.getElementById('settingsModal').style.display = 'none';
             populateSpecialtySelects();
             renderPatients();
+            renderOpportunities();
         }
         function toggleSoundSetting(c) { chatSoundEnabled = c.checked; localStorage.setItem('clini_chat_sound', JSON.stringify(chatSoundEnabled)); }
 
@@ -1042,13 +1067,45 @@
             }
         }
 
-        function renderOpportunities() {
-            const container = document.getElementById('opportunityListContainer');
-            container.innerHTML = opportunities.length === 0 ? `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">Nenhuma oportunidade.</div>` : '';
+        function formatWaitTime(createdAt) {
+            const diffMs = Date.now() - createdAt;
+            const hours = diffMs / 3600000;
+            if (hours < 1) return 'há poucos minutos';
+            if (hours < 24) return `há ${Math.floor(hours)}h`;
+            const days = Math.floor(hours / 24);
+            return `há ${days} dia${days > 1 ? 's' : ''}`;
+        }
 
-            opportunities.forEach((o, idx) => {
+        function waitLevel(createdAt) {
+            const hours = (Date.now() - createdAt) / 3600000;
+            if (hours >= appSettings.waitDangerHours) return 'danger';
+            if (hours >= appSettings.waitWarningHours) return 'warning';
+            return 'normal';
+        }
+
+        function populateOppSpecialtyFilter() {
+            const sel = document.getElementById('oppSpecialtyFilter');
+            const prevVal = sel.value;
+            const values = [...new Set(specialtiesConfig.map(s => s.name))];
+            sel.innerHTML = '<option value="all">Todas especialidades</option>' + values.map(v => `<option value="${v}">${v}</option>`).join('');
+            if (values.includes(prevVal)) sel.value = prevVal;
+        }
+
+        function renderOpportunities() {
+            populateOppSpecialtyFilter();
+            const filterVal = document.getElementById('oppSpecialtyFilter').value;
+            const filtered = filterVal === 'all' ? opportunities : opportunities.filter(o => o.specialty === filterVal);
+
+            const container = document.getElementById('opportunityListContainer');
+            const emptyMessage = filterVal !== 'all' ? 'Nenhuma oportunidade com esta especialidade.' : 'Nenhuma oportunidade.';
+            container.innerHTML = filtered.length === 0 ? `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">${emptyMessage}</div>` : '';
+
+            filtered.forEach((o) => {
+                const idx = opportunities.findIndex(op => op.id === o.id);
+                const level = waitLevel(o.createdAt);
+                const levelClass = level === 'danger' ? ' opportunity-card--danger' : level === 'warning' ? ' opportunity-card--warning' : '';
                 container.innerHTML += `
-                    <div class="opportunity-card" draggable="true"
+                    <div class="opportunity-card${levelClass}" draggable="true"
                          ondragstart="dragOppStart(event, ${idx})"
                          ondragover="allowDrop(event)"
                          ondragenter="this.classList.add('drag-over')"
@@ -1064,32 +1121,80 @@
                             <div class="reorder-btns">
                                 <button class="reorder-btn" onclick="moveOpportunity(${idx}, -1)" title="Mover para cima">▲</button>
                                 <button class="reorder-btn" onclick="moveOpportunity(${idx}, 1)" title="Mover para baixo">▼</button>
+                                <button class="reorder-btn" onclick="openEditOppModal('${o.id}')" title="Editar">✏️</button>
                                 <button class="reorder-btn" style="background:#fee2e2; color:#ef4444; border-color:#fca5a5;" onclick="removeOpportunity('${o.id}')" title="Remover">✕</button>
                             </div>
                         </div>
-                        <div class="opportunity-body"><div>📱 ${o.phone}</div><p>${o.notes || ''}</p></div>
+                        <div class="opportunity-body">
+                          <div>📱 ${o.phone}</div>
+                          <div style="font-size:0.8rem;">${o.specialty || ''}</div>
+                          <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">${formatWaitTime(o.createdAt)}</div>
+                          <p>${o.notes || ''}</p>
+                        </div>
                     </div>
                 `;
             });
             updateOpportunityAlerts();
         }
 
-        function openOppModal() { document.getElementById('oppModal').style.display = 'flex'; }
-        function closeOppModal() { document.getElementById('oppModal').style.display = 'none'; }
-        async function saveOpportunity(e) {
-            e.preventDefault();
-            await api('/opportunities', { method: 'POST', body: JSON.stringify({
-                name: document.getElementById('oppName').value,
-                phone: document.getElementById('oppPhone').value,
-                notes: document.getElementById('oppNotes').value
-            }) });
+        function populateOppSpecialtySelect() {
+            const sel = document.getElementById('oppSpecialty');
+            sel.innerHTML = specialtiesConfig.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+        }
+
+        function toDatetimeLocalValue(ms) {
+            const d = new Date(ms);
+            const pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function openOppModal() {
+            document.getElementById('oppModalTitle').innerText = 'Adicionar Encaixe';
+            document.getElementById('oppId').value = '';
             document.getElementById('oppName').value = '';
             document.getElementById('oppPhone').value = '';
             document.getElementById('oppNotes').value = '';
+            populateOppSpecialtySelect();
+            document.getElementById('oppCreatedAt').value = toDatetimeLocalValue(Date.now());
+            document.getElementById('oppModal').style.display = 'flex';
+        }
+
+        function openEditOppModal(id) {
+            const o = opportunities.find(op => op.id === id);
+            if (!o) return;
+            document.getElementById('oppModalTitle').innerText = 'Editar Encaixe';
+            document.getElementById('oppId').value = o.id;
+            document.getElementById('oppName').value = o.name;
+            document.getElementById('oppPhone').value = o.phone;
+            document.getElementById('oppNotes').value = o.notes || '';
+            populateOppSpecialtySelect();
+            document.getElementById('oppSpecialty').value = o.specialty || '';
+            document.getElementById('oppCreatedAt').value = toDatetimeLocalValue(o.createdAt);
+            document.getElementById('oppModal').style.display = 'flex';
+        }
+
+        function closeOppModal() { document.getElementById('oppModal').style.display = 'none'; }
+
+        async function saveOpportunity(e) {
+            e.preventDefault();
+            const editingId = document.getElementById('oppId').value;
+            const payload = {
+                name: document.getElementById('oppName').value,
+                phone: document.getElementById('oppPhone').value,
+                notes: document.getElementById('oppNotes').value,
+                specialty: document.getElementById('oppSpecialty').value,
+                createdAt: new Date(document.getElementById('oppCreatedAt').value).getTime()
+            };
+            if (editingId) {
+                await api('/opportunities/' + editingId, { method: 'PUT', body: JSON.stringify(payload) });
+            } else {
+                await api('/opportunities', { method: 'POST', body: JSON.stringify(payload) });
+            }
             closeOppModal();
         }
 
         async function removeOpportunity(id) {
+            if (!confirm('Tem certeza que deseja remover esta oportunidade?')) return;
             await api('/opportunities/' + id, { method: 'DELETE' });
         }
 
@@ -1195,62 +1300,104 @@
             await api('/patients/reorder', { method: 'POST', body: JSON.stringify({ order: arr.map(p => p.id) }) });
         }
 
+        const PROFESSIONALS = [
+          { id: 'doctor_elizeu', name: 'Dr. Elizeu' },
+          { id: 'doctor_lucas', name: 'Dr. Lucas Domingues' }
+        ];
+
         function renderPatients() {
-            const tbody = document.getElementById('patientTableBody');
-            let list = [...patients];
+          const container = document.getElementById('patientBlocksContainer');
+          let list = [...patients];
 
-            const filterType = document.getElementById('filterType')?.value || 'all';
-            const filterValueSel = document.getElementById('filterValue');
-            if (filterType !== 'all' && filterValueSel && filterValueSel.value) {
-                const v = filterValueSel.value;
-                if (filterType === 'indication') list = list.filter(p => p.source === v);
-                else if (filterType === 'procedure') list = list.filter(p => p.specialty === v);
-                else if (filterType === 'date') list = list.filter(p => p.nextConsult === v);
-            }
-            renderFilterOptions(filterType);
+          const filterType = document.getElementById('filterType')?.value || 'all';
+          const filterValueSel = document.getElementById('filterValue');
+          if (filterType !== 'all' && filterValueSel && filterValueSel.value) {
+            const v = filterValueSel.value;
+            if (filterType === 'indication') list = list.filter(p => p.source === v);
+            else if (filterType === 'procedure') list = list.filter(p => p.specialty === v);
+            else if (filterType === 'date') list = list.filter(p => p.nextConsult === v);
+          }
+          renderFilterOptions(filterType);
 
-            tbody.innerHTML = list.length === 0 ? `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">Nenhum paciente cadastrado.</td></tr>` : '';
+          document.getElementById('patientCountLabel').innerText = `Total: ${list.length} paciente(s)`;
 
-            document.getElementById('patientCountLabel').innerText = `Total: ${list.length} paciente(s)`;
+          container.innerHTML = PROFESSIONALS.map(prof => {
+            const profPatients = list.filter(p => (p.assignedTo || 'doctor_elizeu') === prof.id);
+            return `
+              <div style="margin-top: 16px;">
+                <div style="font-size: 0.9rem; font-weight: 700; color: var(--primary); margin-bottom: 8px;">
+                  ${prof.name} <span style="font-weight: 400; color: var(--text-muted); font-size: 0.8rem;">(${profPatients.length})</span>
+                </div>
+                <div class="table-responsive">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style="width: 120px;">Posição & Arrastar</th>
+                        <th>Paciente / Contato</th>
+                        <th>Início / Origem</th>
+                        <th>Especialidade & Fase</th>
+                        <th>Radiografia / Exame</th>
+                        <th>Próxima Consulta</th>
+                        <th>Observações</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody id="patientTableBody_${prof.id}" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropPatient(event)"></tbody>
+                  </table>
+                </div>
+              </div>
+            `;
+          }).join('');
 
-            list.forEach((p) => {
-                const idx = patients.findIndex(pp => pp.id === p.id);
-                let attachmentHtml = `<span class="no-attachment">Nenhum</span>`;
-                if (p.attachment) {
-                    attachmentHtml = `<img src="${p.attachment}" class="attachment-thumb" onclick="openImageViewer('${p.attachment}')" title="Clique para ver a radiografia">`;
-                }
+          PROFESSIONALS.forEach(prof => {
+            const tbody = document.getElementById('patientTableBody_' + prof.id);
+            const profPatients = list.filter(p => (p.assignedTo || 'doctor_elizeu') === prof.id);
+            tbody.innerHTML = profPatients.length === 0
+              ? `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhum paciente neste bloco.</td></tr>`
+              : '';
 
-                let pinIcon = p.pinned ? '📌' : '📍';
-                let pinTitle = p.pinned ? 'Fixado (Clique para remover)' : 'Fixar paciente';
+            profPatients.forEach((p) => {
+              const idx = patients.findIndex(pp => pp.id === p.id);
+              let attachmentHtml = `<span class="no-attachment">Nenhum</span>`;
+              if (p.attachment) {
+                attachmentHtml = `<img src="${p.attachment}" class="attachment-thumb" onclick="openImageViewer('${p.attachment}')" title="Clique para ver a radiografia">`;
+              }
+              let pinIcon = p.pinned ? '📌' : '📍';
+              let pinTitle = p.pinned ? 'Fixado (Clique para remover)' : 'Fixar paciente';
 
-                tbody.innerHTML += `
-                    <tr draggable="true"
-                        ondragstart="dragPatientStart(event, ${idx})"
-                        ondragover="allowDrop(event)"
-                        ondragenter="this.classList.add('drag-over')"
-                        ondragleave="this.classList.remove('drag-over')"
-                        ondrop="dropPatientOnRow(event, ${idx})"
-                        ondragend="dragEnd(event)">
-                        <td>
-                            <div style="display:flex; align-items:center; gap:4px;">
-                                <span class="pos-indicator">${idx + 1}</span>
-                                <span class="drag-handle" title="Arraste para mover">⋮⋮</span>
-                                <div class="reorder-btns">
-                                    <button class="reorder-btn" onclick="movePatient(${idx}, -1)" title="Mover para cima">▲</button>
-                                    <button class="reorder-btn" onclick="movePatient(${idx}, 1)" title="Mover para baixo">▼</button>
-                                </div>
-                                <button class="pin-btn" onclick="togglePinPatient('${p.id}')" title="${pinTitle}" style="font-size:0.9rem; padding:0;">${pinIcon}</button>
+              tbody.innerHTML += `
+                <tr draggable="true"
+                    ondragstart="dragPatientStart(event, ${idx})"
+                    ondragover="allowDrop(event)"
+                    ondragenter="this.classList.add('drag-over')"
+                    ondragleave="this.classList.remove('drag-over')"
+                    ondrop="dropPatientOnRow(event, ${idx})"
+                    ondragend="dragEnd(event)">
+                    <td>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <span class="pos-indicator">${idx + 1}</span>
+                            <span class="drag-handle" title="Arraste para mover">⋮⋮</span>
+                            <div class="reorder-btns">
+                                <button class="reorder-btn" onclick="movePatient(${idx}, -1)" title="Mover para cima">▲</button>
+                                <button class="reorder-btn" onclick="movePatient(${idx}, 1)" title="Mover para baixo">▼</button>
                             </div>
-                        </td>
-                        <td><div class="patient-name">${p.name}</div><a href="https://wa.me/55${p.phone.replace(/\D/g,'')}" target="_blank" class="whatsapp-link">📱 ${p.phone}</a></td>
-                        <td><span class="badge">${p.startDate}</span><br><span class="source-tag">👤 ${p.source}</span></td>
-                        <td><strong>${p.specialty}</strong><br><span style="font-size:0.80rem; color:var(--text-muted);">${p.phase}</span></td>
-                        <td>${attachmentHtml}</td>
-                        <td>📅 ${p.nextConsult || '-'}</td>
-                        <td style="color:var(--text-muted); font-size:0.85rem;">${p.notes || '-'}</td>
-                    </tr>
-                `;
+                            <button class="pin-btn" onclick="togglePinPatient('${p.id}')" title="${pinTitle}" style="font-size:0.9rem; padding:0;">${pinIcon}</button>
+                        </div>
+                    </td>
+                    <td><div class="patient-name">${p.name}</div><a href="https://wa.me/55${p.phone.replace(/\D/g,'')}" target="_blank" class="whatsapp-link">📱 ${p.phone}</a></td>
+                    <td><span class="badge">${p.startDate}</span><br><span class="source-tag">👤 ${p.source}</span></td>
+                    <td><strong>${p.specialty}</strong><br><span style="font-size:0.80rem; color:var(--text-muted);">${p.phase}</span></td>
+                    <td>${attachmentHtml}</td>
+                    <td>📅 ${p.nextConsult || '-'}</td>
+                    <td style="color:var(--text-muted); font-size:0.85rem;">${p.notes || '-'}</td>
+                    <td>
+                      <button class="btn-icon" onclick="openEditPatientModal('${p.id}')" title="Editar">✏️</button>
+                      <button class="btn-icon" onclick="deletePatient('${p.id}')" title="Apagar">🗑️</button>
+                    </td>
+                </tr>
+              `;
             });
+          });
         }
 
         function renderFilterOptions(filterType) {
@@ -1268,10 +1415,32 @@
 
         function openPatientModal() {
             document.getElementById('patientForm').reset();
+            document.getElementById('patientModalTitle').innerText = 'Adicionar Paciente';
+            document.getElementById('patientId').value = '';
             populateSpecialtySelects();
             document.getElementById('patientModal').style.display = 'flex';
         }
         function closePatientModal() { document.getElementById('patientModal').style.display = 'none'; }
+
+        function openEditPatientModal(id) {
+            const p = patients.find(pat => pat.id === id);
+            if (!p) return;
+            document.getElementById('patAttachment').value = '';
+            document.getElementById('patientModalTitle').innerText = 'Editar Paciente';
+            document.getElementById('patientId').value = p.id;
+            document.getElementById('patName').value = p.name;
+            document.getElementById('patPhone').value = p.phone;
+            document.getElementById('patSource').value = p.source;
+            document.getElementById('patAssignedTo').value = p.assignedTo || 'doctor_elizeu';
+            populateSpecialtySelects();
+            document.getElementById('patSpecialty').value = p.specialty;
+            updatePhaseOptions();
+            document.getElementById('patPhase').value = p.phase;
+            document.getElementById('patStartDate').value = p.startDate;
+            document.getElementById('patNextConsult').value = p.nextConsult || '';
+            document.getElementById('patNotes').value = p.notes || '';
+            document.getElementById('patientModal').style.display = 'flex';
+        }
 
         function openImageViewer(imgSrc) {
             document.getElementById('viewerImageElement').src = imgSrc;
@@ -1284,6 +1453,9 @@
         async function savePatient(e) {
             e.preventDefault();
             const fileInput = document.getElementById('patAttachment');
+            const editingId = document.getElementById('patientId').value;
+
+            const currentPatient = editingId ? patients.find(p => p.id === editingId) : null;
 
             const buildPayload = (imageBase64) => ({
                 name: document.getElementById('patName').value,
@@ -1295,11 +1467,16 @@
                 nextConsult: document.getElementById('patNextConsult').value,
                 notes: document.getElementById('patNotes').value,
                 attachment: imageBase64 || null,
-                pinned: false
+                pinned: editingId ? (currentPatient?.pinned || false) : false,
+                assignedTo: document.getElementById('patAssignedTo').value
             });
 
             const submit = async (imageBase64) => {
-                await api('/patients', { method: 'POST', body: JSON.stringify(buildPayload(imageBase64)) });
+                if (editingId) {
+                    await api('/patients/' + editingId, { method: 'PUT', body: JSON.stringify(buildPayload(imageBase64)) });
+                } else {
+                    await api('/patients', { method: 'POST', body: JSON.stringify(buildPayload(imageBase64)) });
+                }
                 closePatientModal();
             };
 
@@ -1312,12 +1489,18 @@
             }
         }
 
+        async function deletePatient(id) {
+            if (!confirm('Tem certeza que deseja apagar este paciente? O histórico será perdido.')) return;
+            await api('/patients/' + id, { method: 'DELETE' });
+        }
+
         // ---------------------------------------------------------------
         // Carregamento inicial e eventos de sincronização em tempo real
         // ---------------------------------------------------------------
         async function loadPatients() { patients = await api('/patients'); renderPatients(); }
         async function loadOpportunities() { opportunities = await api('/opportunities'); renderOpportunities(); }
-        async function loadSpecialties() { specialtiesConfig = await api('/specialties'); populateSpecialtySelects(); }
+        async function loadSpecialties() { specialtiesConfig = await api('/specialties'); populateSpecialtySelects(); renderOpportunities(); }
+        async function loadSettings() { appSettings = await api('/settings'); }
         async function loadMessages() {
             chatMessages = await api('/messages');
             updateGlobalChatBadge();
@@ -1327,11 +1510,12 @@
         socket.on('patients:changed', loadPatients);
         socket.on('opportunities:changed', loadOpportunities);
         socket.on('specialties:changed', () => { loadSpecialties(); if (document.getElementById('settingsModal').style.display === 'flex') renderSettingsSpecialties(); });
+        socket.on('settings:changed', () => { loadSettings().then(renderOpportunities); });
 
         async function boot() {
             if (!currentUser) { openLoginModal(); }
             else { initUserSession(); }
-            await Promise.all([loadPatients(), loadOpportunities(), loadSpecialties(), loadMessages()]);
+            await Promise.all([loadPatients(), loadOpportunities(), loadSpecialties(), loadMessages(), loadSettings()]);
         }
         boot();
     </script>
