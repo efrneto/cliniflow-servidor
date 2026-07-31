@@ -32,7 +32,8 @@ const DEFAULT_DATA = {
     { id: 'orto', name: 'Ortodontia', phases: ['Instalação', 'Manutenção', 'Contenção'] },
     { id: 'endo', name: 'Endodontia (Canal)', phases: ['Diagnóstico / Avaliação', 'Tratamento de Canal', 'Finalizado'] }
   ],
-  messages: []
+  messages: [],
+  settings: { waitWarningHours: 24, waitDangerHours: 48 }
 };
 
 function loadData() {
@@ -41,7 +42,15 @@ function loadData() {
     return JSON.parse(JSON.stringify(DEFAULT_DATA));
   }
   try {
-    return JSON.parse(fs.readFileSync(DATA_PATH, 'utf-8'));
+    const parsed = JSON.parse(fs.readFileSync(DATA_PATH, 'utf-8'));
+    if (!parsed.settings) parsed.settings = { waitWarningHours: 24, waitDangerHours: 48 };
+    if (Array.isArray(parsed.opportunities)) {
+      parsed.opportunities.forEach(o => {
+        if (o.createdAt === undefined) o.createdAt = Date.now();
+        if (o.specialty === undefined) o.specialty = '';
+      });
+    }
+    return parsed;
   } catch (e) {
     console.error('Falha ao ler data.json, recriando com dados padrão.', e);
     fs.writeFileSync(DATA_PATH, JSON.stringify(DEFAULT_DATA, null, 2));
@@ -74,7 +83,8 @@ app.post('/api/patients', (req, res) => {
     id: p.id || Date.now().toString(),
     name: p.name, phone: p.phone, source: p.source, specialty: p.specialty, phase: p.phase,
     startDate: p.startDate, nextConsult: p.nextConsult || '', notes: p.notes || '',
-    attachment: p.attachment || null, pinned: !!p.pinned
+    attachment: p.attachment || null, pinned: !!p.pinned,
+    assignedTo: p.assignedTo || 'doctor_elizeu'
   };
   db.patients.push(patient);
   save();
@@ -91,7 +101,8 @@ app.put('/api/patients/:id', (req, res) => {
     name: p.name, phone: p.phone, source: p.source, specialty: p.specialty, phase: p.phase,
     startDate: p.startDate, nextConsult: p.nextConsult || '', notes: p.notes || '',
     attachment: p.attachment !== undefined ? (p.attachment || db.patients[idx].attachment) : db.patients[idx].attachment,
-    pinned: !!p.pinned
+    pinned: !!p.pinned,
+    assignedTo: p.assignedTo || db.patients[idx].assignedTo || 'doctor_elizeu'
   };
   save();
   io.emit('patients:changed');
@@ -124,7 +135,12 @@ app.get('/api/opportunities', (req, res) => {
 
 app.post('/api/opportunities', (req, res) => {
   const o = req.body;
-  const opp = { id: o.id || Date.now().toString(), name: o.name, phone: o.phone, notes: o.notes || '' };
+  const opp = {
+    id: o.id || Date.now().toString(),
+    name: o.name, phone: o.phone, notes: o.notes || '',
+    specialty: o.specialty || '',
+    createdAt: o.createdAt || Date.now()
+  };
   db.opportunities.push(opp);
   save();
   io.emit('opportunities:changed');
@@ -133,6 +149,21 @@ app.post('/api/opportunities', (req, res) => {
 
 app.delete('/api/opportunities/:id', (req, res) => {
   db.opportunities = db.opportunities.filter(o => o.id !== req.params.id);
+  save();
+  io.emit('opportunities:changed');
+  res.json({ ok: true });
+});
+
+app.put('/api/opportunities/:id', (req, res) => {
+  const idx = db.opportunities.findIndex(o => o.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  const o = req.body;
+  db.opportunities[idx] = {
+    ...db.opportunities[idx],
+    name: o.name, phone: o.phone, notes: o.notes || '',
+    specialty: o.specialty || db.opportunities[idx].specialty,
+    createdAt: o.createdAt || db.opportunities[idx].createdAt
+  };
   save();
   io.emit('opportunities:changed');
   res.json({ ok: true });
@@ -182,6 +213,24 @@ app.post('/api/messages/read', (req, res) => {
   db.messages.forEach(m => { if (m.to === toUser && m.from === fromUser) m.read = true; });
   save();
   io.emit('messages:changed');
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Settings (limites de tempo de espera)
+// ---------------------------------------------------------------------------
+app.get('/api/settings', (req, res) => {
+  res.json(db.settings);
+});
+
+app.put('/api/settings', (req, res) => {
+  const s = req.body;
+  db.settings = {
+    waitWarningHours: Number(s.waitWarningHours) || db.settings.waitWarningHours,
+    waitDangerHours: Number(s.waitDangerHours) || db.settings.waitDangerHours
+  };
+  save();
+  io.emit('settings:changed');
   res.json({ ok: true });
 });
 

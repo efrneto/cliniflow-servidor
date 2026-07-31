@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CliniFlow - Gestão Inteligente do Consultório</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1550px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            background: var(--card-bg);
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        header h1 {
+            font-size: 1.4rem;
+            color: var(--primary);
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            position: relative;
+        }
+
+        .conn-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: #f1f5f9;
+        }
+        .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); transition: background 0.3s; }
+        .conn-dot.online { background: var(--success); }
+
+        .user-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #f1f5f9;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .user-badge span {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card-container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 1.05rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn {
+            background-color: var(--primary-light);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background-color: var(--primary); }
+        .btn-secondary { background-color: #64748b; }
+        .btn-secondary:hover { background-color: #475569; }
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: #dc2626; }
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: #059669; }
+
+        /* RADAR DE ENCAIXES & ALERTAS */
+        .opportunity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 500px;
+            overflow-y: auto;
+            min-height: 100px;
+        }
+
+        .opportunity-card {
+            background: #fdf8f6;
+            border: 1px solid #fed7aa;
+            border-left: 4px solid var(--warning);
+            padding: 12px;
+            border-radius: 8px;
+            position: relative;
+            cursor: grab;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .opportunity-card:active { cursor: grabbing; }
+        .opportunity-card.dragging { opacity: 0.4; }
+        .opportunity-card.drag-over { border-top: 3px solid var(--primary-light); }
+        .opportunity-card--warning { border-color: #fac775; border-left-color: var(--warning); background: #fffaf0; }
+        .opportunity-card--danger { border-color: #f7c1c1; border-left-color: var(--danger); background: #fcebeb; }
+
+        .opportunity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .opportunity-body {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        /* BADGES DE ALERTA DE OPORTUNIDADE */
+        .opp-alert-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--warning);
+            color: #78350f;
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 12px;
+            border: 1px solid #fef3c7;
+            animation: pulse-warning 1.8s infinite;
+        }
+
+        @keyframes pulse-warning {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
+
+        .table-toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 12px 14px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+            vertical-align: middle;
+        }
+
+        tr {
+            transition: background 0.15s;
+            cursor: default;
+        }
+        tr:hover { background-color: #f8fafc; }
+        tr.dragging { opacity: 0.4; }
+        tr.drag-over { background-color: #e0f2fe !important; border-top: 2px solid var(--primary-light); }
+
+        .patient-name { font-weight: 600; color: var(--primary); }
+
+        .whatsapp-link {
+            color: #16a34a;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.8rem;
+        }
+
+        input[type="text"], input[type="date"], select, textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: var(--text-main);
+            background: #fff;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 100%; max-width: 550px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-height: 90vh; overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 { font-size: 1.2rem; color: var(--primary); }
+        .close-btn { background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-muted); }
+
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; margin-bottom: 5px; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+
+        .btn-icon {
+            background: none; border: none; cursor: pointer; padding: 6px; border-radius: 4px;
+            color: var(--text-muted); transition: background 0.2s, color 0.2s;
+        }
+        .btn-icon:hover { background: #e2e8f0; color: var(--primary); }
+
+        .badge {
+            display: inline-block; padding: 3px 6px; border-radius: 4px;
+            font-size: 0.75rem; font-weight: 600; background: #e0f2fe; color: #0369a1;
+        }
+
+        .source-tag {
+            font-size: 0.75rem; color: #475569; background: #f1f5f9;
+            padding: 2px 5px; border-radius: 4px; display: inline-block; margin-top: 2px;
+        }
+
+        .assigned-tag {
+            font-size: 0.75rem; color: #7e22ce; background: #f3e8ff;
+            padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 2px;
+            font-weight: 600;
+        }
+
+        .switch-container {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #f8fafc; padding: 12px; border-radius: 8px;
+            border: 1px solid var(--border-color); margin-bottom: 15px;
+        }
+
+        /* ANEXOS DE PACIENTES */
+        .attachment-thumb {
+            width: 42px; height: 42px; object-fit: cover; border-radius: 6px;
+            border: 1px solid var(--border-color); cursor: pointer; transition: transform 0.2s;
+        }
+        .attachment-thumb:hover { transform: scale(1.1); }
+        .no-attachment { font-size: 0.75rem; color: var(--text-muted); font-style: italic; }
+
+        /* MODAL VISUALIZADOR DE IMAGEM */
+        .image-viewer-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 2000;
+        }
+        .image-viewer-content {
+            max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+        }
+
+        /* CHAT INTERNO ESTILOS */
+        .chat-floating-badge {
+            display: none; align-items: center; justify-content: center; background: var(--danger);
+            color: white; width: 42px; height: 42px; border-radius: 50%; font-weight: bold;
+            font-size: 0.9rem; cursor: pointer; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            position: relative; animation: pulse-ring 1.5s infinite; border: 2px solid white;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .chat-unread-count {
+            position: absolute; top: -4px; right: -4px; background: #1e293b; color: white;
+            font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; border: 1px solid white;
+        }
+
+        .chat-modal-content {
+            background: white; border-radius: 12px; width: 100%; max-width: 750px; height: 600px;
+            display: flex; flex-direction: column; box-shadow: 0 15px 35px rgba(0,0,0,0.2); overflow: hidden;
+        }
+
+        .chat-body-layout { display: grid; grid-template-columns: 220px 1fr; flex: 1; overflow: hidden; }
+        .chat-sidebar { background: #f8fafc; border-right: 1px solid var(--border-color); overflow-y: auto; }
+        .chat-contact-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; transition: background 0.2s; }
+        .chat-contact-item:hover { background: #f1f5f9; }
+        .chat-contact-item.active { background: #e2e8f0; font-weight: 600; }
+        .contact-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-light); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: bold; flex-shrink: 0; }
+        .chat-main-pane { display: flex; flex-direction: column; background: #ffffff; height: 100%; overflow: hidden; }
+        .chat-messages-container { flex: 1; padding: 15px; overflow-y: auto; background: #fdfbf7; display: flex; flex-direction: column; gap: 10px; }
+        .chat-bubble { max-width: 75%; padding: 10px 14px; border-radius: 10px; font-size: 0.9rem; position: relative; word-break: break-word; }
+        .chat-bubble.sent { background: #dcf8c6; align-self: flex-end; border-top-right-radius: 2px; }
+        .chat-bubble.received { background: #ffffff; align-self: flex-start; border-top-left-radius: 2px; border: 1px solid var(--border-color); }
+        .chat-bubble-footer { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 4px; font-size: 0.7rem; color: var(--text-muted); }
+        .chat-reactions-box { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+        .reaction-badge { background: #f1f5f9; border: 1px solid var(--border-color); padding: 1px 6px; border-radius: 10px; font-size: 0.75rem; cursor: pointer; }
+        .chat-input-area { padding: 12px; background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; gap: 8px; align-items: center; }
+        .typing-indicator { font-size: 0.75rem; color: var(--text-muted); font-style: italic; padding: 4px 15px; background: #fdfbf7; min-height: 22px; }
+        .emoji-picker-popup { position: absolute; bottom: 65px; left: 15px; background: white; border: 1px solid var(--border-color); padding: 8px; border-radius: 8px; display: none; grid-template-columns: repeat(5, 1fr); gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 10; }
+        .emoji-btn { background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 4px; border-radius: 4px; }
+        .emoji-btn:hover { background: #f1f5f9; }
+        .chat-msg-img { max-width: 200px; max-height: 200px; border-radius: 6px; margin-top: 5px; cursor: pointer; display: block; border: 1px solid var(--border-color); }
+
+        .pin-btn { background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 4px; border-radius: 4px; transition: transform 0.2s; }
+        .pin-btn:hover { transform: scale(1.2); }
+
+        /* POSIÇÕES E REORDENAÇÃO SUTIL (1, 2, 3...) & DRAG HANDLE */
+        .pos-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            background: #e2e8f0;
+            color: var(--text-main);
+            font-size: 0.75rem;
+            font-weight: 700;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            padding: 2px 4px;
+            user-select: none;
+            letter-spacing: -2px;
+        }
+        .drag-handle:active { cursor: grabbing; }
+
+        .reorder-btns {
+            display: inline-flex;
+            gap: 2px;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        tr:hover .reorder-btns, .opportunity-card:hover .reorder-btns {
+            opacity: 1;
+        }
+        .reorder-btn {
+            background: #f1f5f9;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            font-size: 0.65rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            transition: background 0.2s, color 0.2s;
+        }
+        .reorder-btn:hover {
+            background: var(--primary-light);
+            color: white;
+            border-color: var(--primary-light);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div>
+                <h1>CliniFlow - Painel de Controle Cirúrgico</h1>
+                <p>Gestão de Encaixes, Posições e Tratamentos Ativos</p>
+            </div>
+            <div class="header-right">
+                <div class="conn-status"><span class="conn-dot" id="connDot"></span><span id="connLabel">Conectando...</span></div>
+
+                <!-- Alerta de Oportunidades no Header -->
+                <div id="headerOppAlertBadge" style="display:none;" class="opp-alert-badge" title="Existem oportunidades pendentes!">
+                    ⚡ <span id="headerOppCount">0</span> Encaixes Pendentes
+                </div>
+
+                <div id="chatNotificationBadge" class="chat-floating-badge" onclick="openChatModal()" title="Novas mensagens!">
+                    <span id="badgeInitials">RE</span>
+                    <span id="badgeCount" class="chat-unread-count">0</span>
+                </div>
+
+                <div class="user-badge">
+                    👤 Logado como: <span id="currentUserName">Carregando...</span>
+                    <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.75rem; margin-left: 8px;" onclick="openLoginModal()">Trocar</button>
+                </div>
+                <button class="btn btn-secondary" onclick="openChatModal()">💬 Chat</button>
+                <button class="btn btn-secondary" onclick="openSettingsModal()" id="gearBtn" style="display:none;" title="Configurar Sistema">⚙️</button>
+            </div>
+        </header>
+
+        <div class="main-layout">
+            <div>
+                <div class="card-container" style="margin-bottom: 0;">
+                    <div class="section-title">
+                        <span>⚡ Radar de Encaixes <span id="panelOppCountBadge" style="display:none;" class="opp-alert-badge">0</span></span>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                          <select id="oppSpecialtyFilter" onchange="renderOpportunities()" style="width: 160px; padding: 6px;"><option value="all">Todas especialidades</option></select>
+                          <button class="btn" onclick="openOppModal()">+ Novo</button>
+                        </div>
+                    </div>
+                    <div class="opportunity-list" id="opportunityListContainer" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropOpportunity(event)"></div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card-container" style="margin-bottom: 0;">
+                    <div class="section-title">
+                        <span>📋 Pacientes em Tratamento & Fases</span>
+                        <button class="btn" onclick="openPatientModal()">+ Novo Paciente</button>
+                    </div>
+
+                    <div class="table-toolbar">
+                        <div class="filter-group">
+                            <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">Filtrar por:</label>
+                            <select id="filterType" onchange="renderPatients()" style="width: 140px; padding: 6px;">
+                                <option value="all">Todos</option>
+                                <option value="indication">Indicação / Responsável</option>
+                                <option value="procedure">Especialidade</option>
+                                <option value="date">Próxima Consulta</option>
+                            </select>
+                            <select id="filterValue" onchange="renderPatients()" style="width: 180px; padding: 6px; display:none;"></select>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);" id="patientCountLabel"></div>
+                    </div>
+
+                    <div id="patientBlocksContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Visualização de Imagem em Tamanho Real -->
+    <div class="image-viewer-modal" id="imageViewerModal" onclick="closeImageViewer()">
+        <img class="image-viewer-content" id="viewerImageElement" src="" alt="Exame">
+    </div>
+
+    <!-- Modal Login -->
+    <div class="modal" id="loginModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header"><h2>Identificação de Usuário</h2></div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Selecione quem está operando:</p>
+            <div class="form-group">
+                <label>Usuário do Sistema</label>
+                <select id="selectUser">
+                    <option value="doctor_elizeu">Dr. Elizeu</option>
+                    <option value="doctor_lucas">Dr. Lucas Domingues</option>
+                    <option value="reception">Recepção</option>
+                </select>
+            </div>
+            <button type="button" class="btn" style="width: 100%; margin-top: 10px;" onclick="confirmUserLogin()">Entrar / Continuar</button>
+        </div>
+    </div>
+
+    <!-- Modal Configurações Completas -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>⚙️ Configurações do Consultório</h2>
+                <button class="close-btn" onclick="closeSettingsModal()">&times;</button>
+            </div>
+
+            <div class="switch-container">
+                <div>
+                    <strong style="font-size: 0.9rem; color: var(--primary);">Ativar Som de Notificação no Chat</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Toca um alerta sonoro ao receber mensagem.</div>
+                </div>
+                <input type="checkbox" id="soundToggleSetting" onchange="toggleSoundSetting(this)" style="width: 20px; height: 20px; cursor: pointer;">
+            </div>
+
+            <div style="margin-top: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="font-size: 1rem; color: var(--primary);">Gerenciar Especialidades e Fases</h3>
+                    <button class="btn" onclick="addNewSpecialtyPrompt()">+ Nova Especialidade</button>
+                </div>
+                <div id="settingsSpecialtiesList" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; background: #f8fafc;"></div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <h3 style="font-size: 1rem; color: var(--primary); margin-bottom: 10px;">Destaque de Tempo de Espera (Radar de Encaixes)</h3>
+                <div class="form-group"><label>Alerta amarelo após (horas)</label><input type="text" id="settingWarningHours"></div>
+                <div class="form-group"><label>Alerta vermelho após (horas)</label><input type="text" id="settingDangerHours"></div>
+            </div>
+
+            <button type="button" class="btn btn-secondary" style="width: 100%; margin-top: 20px;" onclick="closeSettingsModal()">Salvar e Fechar</button>
+        </div>
+    </div>
+
+    <!-- MODAL DO CHAT INTERNO -->
+    <div class="modal" id="chatModal">
+        <div class="chat-modal-content">
+            <div class="modal-header" style="padding: 15px 20px; border-bottom: 1px solid var(--border-color); margin-bottom: 0;">
+                <h2>💬 Comunicador Interno CliniFlow</h2>
+                <button class="close-btn" onclick="closeChatModal()">&times;</button>
+            </div>
+            <div class="chat-body-layout">
+                <div class="chat-sidebar" id="chatContactsList"></div>
+                <div class="chat-main-pane">
+                    <div id="chatHeaderInfo" style="padding: 10px 15px; background: #f1f5f9; font-weight: 600; font-size: 0.9rem; border-bottom: 1px solid var(--border-color);">Selecione um contato</div>
+                    <div class="chat-messages-container" id="chatMessagesBox"></div>
+                    <div class="typing-indicator" id="chatTypingIndicator"></div>
+
+                    <div class="emoji-picker-popup" id="emojiPickerPopup">
+                        <button class="emoji-btn" onclick="insertEmoji('😊')">😊</button>
+                        <button class="emoji-btn" onclick="insertEmoji('🦷')">🦷</button>
+                        <button class="emoji-btn" onclick="insertEmoji('👍')">👍</button>
+                        <button class="emoji-btn" onclick="insertEmoji('❤️')">❤️</button>
+                        <button class="emoji-btn" onclick="insertEmoji('⚠️')">⚠️</button>
+                        <button class="emoji-btn" onclick="insertEmoji('✅')">✅</button>
+                        <button class="emoji-btn" onclick="insertEmoji('🙏')">🙏</button>
+                        <button class="emoji-btn" onclick="insertEmoji('🔥')">🔥</button>
+                        <button class="emoji-btn" onclick="insertEmoji('⭐')">⭐</button>
+                        <button class="emoji-btn" onclick="insertEmoji('💡')">💡</button>
+                    </div>
+
+                    <div class="chat-input-area">
+                        <button class="btn-icon" onclick="toggleEmojiPicker()" title="Inserir Emoji">😊</button>
+                        <input type="file" id="chatImageInput" accept="image/*" style="display:none;" onchange="sendChatImageFile(this)">
+                        <button class="btn-icon" onclick="document.getElementById('chatImageInput').click()" title="Anexar Imagem / Radiografia">📎</button>
+
+                        <input type="text" id="chatInputMessage" placeholder="Digite sua mensagem..." oninput="handleTypingInput()" onkeypress="if(event.key==='Enter') sendChatMessage()">
+                        <button class="btn" onclick="sendChatMessage()">Enviar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="oppModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="oppModalTitle">Adicionar Encaixe</h2>
+                <button class="close-btn" onclick="closeOppModal()">&times;</button>
+            </div>
+            <form onsubmit="saveOpportunity(event)">
+                <input type="hidden" id="oppId">
+                <div class="form-group"><label>Nome</label><input type="text" id="oppName" required></div>
+                <div class="form-group"><label>Telefone</label><input type="text" id="oppPhone" required></div>
+                <div class="form-group"><label>Especialidade</label><select id="oppSpecialty" required></select></div>
+                <div class="form-group"><label>Data/Hora de entrada</label><input type="datetime-local" id="oppCreatedAt" required></div>
+                <div class="form-group"><label>Obs</label><textarea id="oppNotes" rows="2"></textarea></div>
+                <button type="submit" class="btn" style="width: 100%;">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Paciente -->
+    <div class="modal" id="patientModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="patientModalTitle">Adicionar Paciente</h2>
+                <button class="close-btn" onclick="closePatientModal()">&times;</button>
+            </div>
+            <form id="patientForm" onsubmit="savePatient(event)">
+                <input type="hidden" id="patientId">
+                <div class="form-group"><label>Nome do Paciente</label><input type="text" id="patName" required></div>
+                <div class="form-group"><label>Telefone / WhatsApp</label><input type="text" id="patPhone" required></div>
+                <div class="form-group"><label>Origem / Indicação</label><select id="patSource"><option value="Dr. Elizeu">Dr. Elizeu</option><option value="Dr. Lucas">Dr. Lucas</option><option value="Recepção">Recepção</option></select></div>
+                <div class="form-group">
+                  <label>Direcionado para</label>
+                  <select id="patAssignedTo">
+                    <option value="doctor_elizeu">Dr. Elizeu</option>
+                    <option value="doctor_lucas">Dr. Lucas Domingues</option>
+                  </select>
+                </div>
+                <div class="form-group"><label>Especialidade</label><select id="patSpecialty" onchange="updatePhaseOptions()" required></select></div>
+                <div class="form-group"><label>Fase do Tratamento</label><select id="patPhase" required></select></div>
+                <div class="form-group">
+                    <label>Anexar Radiografia / Exame (Opcional)</label>
+                    <input type="file" id="patAttachment" accept="image/*">
+                </div>
+                <div class="form-group"><label>Início</label><input type="date" id="patStartDate" required></div>
+                <div class="form-group"><label>Próxima Consulta</label><input type="date" id="patNextConsult"></div>
+                <div class="form-group"><label>Observações do Caso</label><textarea id="patNotes" rows="2"></textarea></div>
+                <button type="submit" class="btn" style="width: 100%;">Salvar Paciente</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // ---------------------------------------------------------------
+        // Estado local + conexão com o servidor
+        // ---------------------------------------------------------------
+        const socket = io();
+        let currentUser = JSON.parse(localStorage.getItem('clini_current_user')) || null;
+        let chatSoundEnabled = JSON.parse(localStorage.getItem('clini_chat_sound')) ?? true;
+        let activeChatContact = null;
+        let typingTimeout = null;
+
+        let chatMessages = [];
+        let chatTypingStatus = {}; // { fromId: { toId: true/false } }
+
+        const contactsList = [
+            { id: 'reception', name: 'Recepção', initials: 'RE' },
+            { id: 'doctor_elizeu', name: 'Dr. Elizeu', initials: 'DE' },
+            { id: 'doctor_lucas', name: 'Dr. Lucas Domingues', initials: 'DL' }
+        ];
+
+        let specialtiesConfig = [];
+        let opportunities = [];
+        let patients = [];
+        let appSettings = { waitWarningHours: 24, waitDangerHours: 48 };
+
+        // ---------------------------------------------------------------
+        // Conexão - indicador visual
+        // ---------------------------------------------------------------
+        socket.on('connect', () => {
+            document.getElementById('connDot').classList.add('online');
+            document.getElementById('connLabel').innerText = 'Em rede';
+        });
+        socket.on('disconnect', () => {
+            document.getElementById('connDot').classList.remove('online');
+            document.getElementById('connLabel').innerText = 'Reconectando...';
+        });
+
+        // ---------------------------------------------------------------
+        // API helpers
+        // ---------------------------------------------------------------
+        async function api(path, options) {
+            const res = await fetch('/api' + path, {
+                headers: { 'Content-Type': 'application/json' },
+                ...options
+            });
+            if (!res.ok) throw new Error('Falha na API: ' + path);
+            return res.status === 204 ? null : res.json();
+        }
+
+        function playNotificationSound() {
+            if (!chatSoundEnabled) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch(e) {}
+        }
+
+        function initUserSession() {
+            document.getElementById('currentUserName').innerText = currentUser.name;
+            if (currentUser.role === 'doctor') {
+                document.getElementById('gearBtn').style.display = 'inline-block';
+            }
+        }
+
+        function openLoginModal() { document.getElementById('loginModal').style.display = 'flex'; }
+        function confirmUserLogin() {
+            const val = document.getElementById('selectUser').value;
+            if (val === 'doctor_elizeu') currentUser = { id: 'doctor_elizeu', name: 'Dr. Elizeu', role: 'doctor' };
+            else if (val === 'doctor_lucas') currentUser = { id: 'doctor_lucas', name: 'Dr. Lucas Domingues', role: 'doctor' };
+            else currentUser = { id: 'reception', name: 'Recepção', role: 'reception' };
+
+            localStorage.setItem('clini_current_user', JSON.stringify(currentUser));
+            document.getElementById('loginModal').style.display = 'none';
+            initUserSession();
+            renderPatients();
+            updateGlobalChatBadge();
+        }
+
+        // ---------------------------------------------------------------
+        // Configurações
+        // ---------------------------------------------------------------
+        function openSettingsModal() {
+            document.getElementById('soundToggleSetting').checked = chatSoundEnabled;
+            document.getElementById('settingWarningHours').value = appSettings.waitWarningHours;
+            document.getElementById('settingDangerHours').value = appSettings.waitDangerHours;
+            renderSettingsSpecialties();
+            document.getElementById('settingsModal').style.display = 'flex';
+        }
+        async function closeSettingsModal() {
+            const warningHours = Number(document.getElementById('settingWarningHours').value) || appSettings.waitWarningHours;
+            const dangerHours = Number(document.getElementById('settingDangerHours').value) || appSettings.waitDangerHours;
+            if (dangerHours <= warningHours) {
+                alert('O limite vermelho deve ser maior que o limite amarelo.');
+                return;
+            }
+            if (warningHours !== appSettings.waitWarningHours || dangerHours !== appSettings.waitDangerHours) {
+                await api('/settings', { method: 'PUT', body: JSON.stringify({ waitWarningHours: warningHours, waitDangerHours: dangerHours }) });
+            }
+            document.getElementById('settingsModal').style.display = 'none';
+            populateSpecialtySelects();
+            renderPatients();
+            renderOpportunities();
+        }
+        function toggleSoundSetting(c) { chatSoundEnabled = c.checked; localStorage.setItem('clini_chat_sound', JSON.stringify(chatSoundEnabled)); }
+
+        function renderSettingsSpecialties() {
+            const container = document.getElementById('settingsSpecialtiesList');
+            container.innerHTML = '';
+            specialtiesConfig.forEach((s) => {
+                container.innerHTML += `
+                    <div style="background: white; padding: 10px; border-radius: 6px; margin-bottom: 8px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <strong>${s.name}</strong>
+                            <button class="btn btn-danger" style="padding: 2px 6px; font-size: 0.75rem;" onclick="removeSpecialty('${s.id}')">Remover</button>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">Fases: ${s.phases.join(', ')}</div>
+                    </div>
+                `;
+            });
+        }
+
+        async function addNewSpecialtyPrompt() {
+            const name = prompt("Nome da nova especialidade:");
+            if (!name) return;
+            const phasesStr = prompt("Fases separadas por vírgula (Ex: Avaliação, Execução, Final):");
+            if (!phasesStr) return;
+            const phases = phasesStr.split(',').map(p => p.trim()).filter(p => p.length > 0);
+
+            await api('/specialties', { method: 'POST', body: JSON.stringify({ name, phases }) });
+            await loadSpecialties();
+            renderSettingsSpecialties();
+        }
+
+        async function removeSpecialty(id) {
+            if (confirm("Tem certeza que deseja remover esta especialidade?")) {
+                await api('/specialties/' + id, { method: 'DELETE' });
+                await loadSpecialties();
+                renderSettingsSpecialties();
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // CHAT INTERNO (tempo real via Socket.io)
+        // ---------------------------------------------------------------
+        function updateGlobalChatBadge() {
+            if (!currentUser) return;
+            let unread = chatMessages.filter(m => m.to === currentUser.id && !m.read).length;
+            const badge = document.getElementById('chatNotificationBadge');
+            const countSpan = document.getElementById('badgeCount');
+            const initialsSpan = document.getElementById('badgeInitials');
+
+            if (unread > 0) {
+                let lastMsg = chatMessages.filter(m => m.to === currentUser.id && !m.read).pop();
+                let sender = contactsList.find(c => c.id === lastMsg.from);
+                initialsSpan.innerText = sender ? sender.initials : '💬';
+                countSpan.innerText = unread;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function openChatModal() {
+            document.getElementById('chatModal').style.display = 'flex';
+            renderChatContacts();
+            if (!activeChatContact) {
+                let first = contactsList.find(c => c.id !== currentUser.id);
+                if (first) selectChatContact(first.id);
+            } else {
+                selectChatContact(activeChatContact);
+            }
+        }
+
+        function closeChatModal() {
+            document.getElementById('chatModal').style.display = 'none';
+            if (activeChatContact) {
+                chatMessages.forEach(m => {
+                    if (m.to === currentUser.id && m.from === activeChatContact) m.read = true;
+                });
+                socket.emit('chat:read', { toUser: currentUser.id, fromUser: activeChatContact });
+                updateGlobalChatBadge();
+            }
+        }
+
+        function renderChatContacts() {
+            const container = document.getElementById('chatContactsList');
+            container.innerHTML = '';
+            contactsList.filter(c => c.id !== currentUser.id).forEach(c => {
+                let unreadCount = chatMessages.filter(m => m.to === currentUser.id && m.from === c.id && !m.read).length;
+                container.innerHTML += `
+                    <div class="chat-contact-item ${activeChatContact === c.id ? 'active' : ''}" onclick="selectChatContact('${c.id}')">
+                        <div class="contact-avatar">${c.initials}</div>
+                        <div style="flex:1; font-size: 0.9rem;">${c.name}</div>
+                        ${unreadCount > 0 ? `<span class="chat-unread-count" style="position:static;">${unreadCount}</span>` : ''}
+                    </div>
+                `;
+            });
+        }
+
+        function selectChatContact(contactId) {
+            activeChatContact = contactId;
+            let contact = contactsList.find(c => c.id === contactId);
+            document.getElementById('chatHeaderInfo').innerText = `Conversando com: ${contact ? contact.name : ''}`;
+
+            chatMessages.forEach(m => {
+                if (m.to === currentUser.id && m.from === contactId) m.read = true;
+            });
+            socket.emit('chat:read', { toUser: currentUser.id, fromUser: contactId });
+            renderChatContacts();
+            renderChatMessages();
+            updateGlobalChatBadge();
+        }
+
+        function renderChatMessages() {
+            const box = document.getElementById('chatMessagesBox');
+            box.innerHTML = '';
+            let filtered = chatMessages.filter(m => (m.from === currentUser.id && m.to === activeChatContact) || (m.from === activeChatContact && m.to === currentUser.id));
+
+            if (filtered.length === 0) {
+                box.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-top:20px;">Nenhuma mensagem ainda. Envie a primeira!</div>`;
+                return;
+            }
+
+            filtered.forEach(m => {
+                let isSent = m.from === currentUser.id;
+                let contentHtml = `<div>${m.text}</div>`;
+                if (m.image) {
+                    contentHtml += `<img src="${m.image}" class="chat-msg-img" onclick="openImageViewer('${m.image}')" title="Clique para ampliar">`;
+                }
+
+                let reactionsHtml = '';
+                if (m.reactions && Object.keys(m.reactions).length > 0) {
+                    reactionsHtml = `<div class="chat-reactions-box">`;
+                    for (let emoji in m.reactions) {
+                        reactionsHtml += `<span class="reaction-badge" title="Reação">${emoji} ${m.reactions[emoji]}</span>`;
+                    }
+                    reactionsHtml += `</div>`;
+                }
+
+                box.innerHTML += `
+                    <div class="chat-bubble ${isSent ? 'sent' : 'received'}">
+                        ${contentHtml}
+                        ${reactionsHtml}
+                        <div class="chat-bubble-footer">
+                            <span>${m.time}</span>
+                            <button class="btn-icon" style="padding:0; font-size:11px;" onclick="addReaction('${m.id}', '👍')">👍</button>
+                            <button class="btn-icon" style="padding:0; font-size:11px;" onclick="addReaction('${m.id}', '❤️')">❤️</button>
+                        </div>
+                    </div>
+                `;
+            });
+            box.scrollTop = box.scrollHeight;
+
+            const typingIndicator = document.getElementById('chatTypingIndicator');
+            if (chatTypingStatus[activeChatContact] && chatTypingStatus[activeChatContact][currentUser.id]) {
+                let contact = contactsList.find(c => c.id === activeChatContact);
+                typingIndicator.innerText = `${contact ? contact.name : 'Outra pessoa'} está digitando...`;
+            } else {
+                typingIndicator.innerText = '';
+            }
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chatInputMessage');
+            const text = input.value.trim();
+            if (!text || !activeChatContact) return;
+
+            socket.emit('chat:send', {
+                from: currentUser.id,
+                to: activeChatContact,
+                text: text,
+                image: null,
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            });
+
+            input.value = '';
+            stopTyping();
+        }
+
+        function sendChatImageFile(fileInput) {
+            if (!fileInput.files || !fileInput.files[0] || !activeChatContact) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                socket.emit('chat:send', {
+                    from: currentUser.id,
+                    to: activeChatContact,
+                    text: '📷 [Radiografia / Imagem Anexada]',
+                    image: e.target.result,
+                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                });
+                fileInput.value = '';
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        }
+
+        function addReaction(msgId, emoji) {
+            socket.emit('chat:reaction', { id: msgId, emoji });
+        }
+
+        function toggleEmojiPicker() {
+            const picker = document.getElementById('emojiPickerPopup');
+            picker.style.display = picker.style.display === 'grid' ? 'none' : 'grid';
+        }
+
+        function insertEmoji(emoji) {
+            const input = document.getElementById('chatInputMessage');
+            input.value += emoji;
+            input.focus();
+            document.getElementById('emojiPickerPopup').style.display = 'none';
+        }
+
+        function handleTypingInput() {
+            if (!activeChatContact || !currentUser) return;
+            socket.emit('chat:typing', { from: currentUser.id, to: activeChatContact, typing: true });
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(stopTyping, 2000);
+        }
+
+        function stopTyping() {
+            if (activeChatContact && currentUser) {
+                socket.emit('chat:typing', { from: currentUser.id, to: activeChatContact, typing: false });
+            }
+        }
+
+        // Eventos recebidos do servidor em tempo real
+        socket.on('chat:new', (msg) => {
+            chatMessages.push(msg);
+            const isOpenWithSender = document.getElementById('chatModal').style.display === 'flex' &&
+                ((msg.from === activeChatContact && msg.to === currentUser?.id) || (msg.from === currentUser?.id && msg.to === activeChatContact));
+            if (isOpenWithSender) {
+                if (msg.to === currentUser.id) {
+                    msg.read = true;
+                    socket.emit('chat:read', { toUser: currentUser.id, fromUser: msg.from });
+                }
+                renderChatMessages();
+                renderChatContacts();
+            } else if (msg.to === currentUser?.id) {
+                playNotificationSound();
+            }
+            updateGlobalChatBadge();
+        });
+
+        socket.on('chat:reaction:update', ({ id, reactions }) => {
+            const m = chatMessages.find(msg => msg.id === id);
+            if (m) { m.reactions = reactions; renderChatMessages(); }
+        });
+
+        socket.on('chat:typing', ({ from, to, typing }) => {
+            if (!chatTypingStatus[to]) chatTypingStatus[to] = {};
+            chatTypingStatus[to][from] = typing;
+            if (document.getElementById('chatModal').style.display === 'flex') renderChatMessages();
+        });
+
+        socket.on('chat:read:update', ({ toUser, fromUser }) => {
+            chatMessages.forEach(m => { if (m.to === toUser && m.from === fromUser) m.read = true; });
+            updateGlobalChatBadge();
+            if (document.getElementById('chatModal').style.display === 'flex') renderChatContacts();
+        });
+
+        // ---------------------------------------------------------------
+        // ENCAIXES (Oportunidades) - sincronizado via API + eventos
+        // ---------------------------------------------------------------
+        function updateOpportunityAlerts() {
+            const headerBadge = document.getElementById('headerOppAlertBadge');
+            const headerCount = document.getElementById('headerOppCount');
+            const panelBadge = document.getElementById('panelOppCountBadge');
+
+            if (opportunities.length > 0) {
+                headerCount.innerText = opportunities.length;
+                headerBadge.style.display = 'inline-flex';
+                panelBadge.innerText = opportunities.length;
+                panelBadge.style.display = 'inline-flex';
+            } else {
+                headerBadge.style.display = 'none';
+                panelBadge.style.display = 'none';
+            }
+        }
+
+        function formatWaitTime(createdAt) {
+            const diffMs = Date.now() - createdAt;
+            const hours = diffMs / 3600000;
+            if (hours < 1) return 'há poucos minutos';
+            if (hours < 24) return `há ${Math.floor(hours)}h`;
+            const days = Math.floor(hours / 24);
+            return `há ${days} dia${days > 1 ? 's' : ''}`;
+        }
+
+        function waitLevel(createdAt) {
+            const hours = (Date.now() - createdAt) / 3600000;
+            if (hours >= appSettings.waitDangerHours) return 'danger';
+            if (hours >= appSettings.waitWarningHours) return 'warning';
+            return 'normal';
+        }
+
+        function populateOppSpecialtyFilter() {
+            const sel = document.getElementById('oppSpecialtyFilter');
+            const prevVal = sel.value;
+            const values = [...new Set(specialtiesConfig.map(s => s.name))];
+            sel.innerHTML = '<option value="all">Todas especialidades</option>' + values.map(v => `<option value="${v}">${v}</option>`).join('');
+            if (values.includes(prevVal)) sel.value = prevVal;
+        }
+
+        function renderOpportunities() {
+            populateOppSpecialtyFilter();
+            const filterVal = document.getElementById('oppSpecialtyFilter').value;
+            const filtered = filterVal === 'all' ? opportunities : opportunities.filter(o => o.specialty === filterVal);
+
+            const container = document.getElementById('opportunityListContainer');
+            const emptyMessage = filterVal !== 'all' ? 'Nenhuma oportunidade com esta especialidade.' : 'Nenhuma oportunidade.';
+            container.innerHTML = filtered.length === 0 ? `<div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">${emptyMessage}</div>` : '';
+
+            filtered.forEach((o) => {
+                const idx = opportunities.findIndex(op => op.id === o.id);
+                const level = waitLevel(o.createdAt);
+                const levelClass = level === 'danger' ? ' opportunity-card--danger' : level === 'warning' ? ' opportunity-card--warning' : '';
+                container.innerHTML += `
+                    <div class="opportunity-card${levelClass}" draggable="true"
+                         ondragstart="dragOppStart(event, ${idx})"
+                         ondragover="allowDrop(event)"
+                         ondragenter="this.classList.add('drag-over')"
+                         ondragleave="this.classList.remove('drag-over')"
+                         ondrop="dropOppOnItem(event, ${idx})"
+                         ondragend="dragEnd(event)">
+                        <div class="opportunity-header">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span class="pos-indicator">${idx + 1}</span>
+                                <span class="drag-handle" title="Arraste para mover">⋮⋮</span>
+                                <span>${o.name}</span>
+                            </div>
+                            <div class="reorder-btns">
+                                <button class="reorder-btn" onclick="moveOpportunity(${idx}, -1)" title="Mover para cima">▲</button>
+                                <button class="reorder-btn" onclick="moveOpportunity(${idx}, 1)" title="Mover para baixo">▼</button>
+                                <button class="reorder-btn" onclick="openEditOppModal('${o.id}')" title="Editar">✏️</button>
+                                <button class="reorder-btn" style="background:#fee2e2; color:#ef4444; border-color:#fca5a5;" onclick="removeOpportunity('${o.id}')" title="Remover">✕</button>
+                            </div>
+                        </div>
+                        <div class="opportunity-body">
+                          <div>📱 ${o.phone}</div>
+                          <div style="font-size:0.8rem;">${o.specialty || ''}</div>
+                          <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">${formatWaitTime(o.createdAt)}</div>
+                          <p>${o.notes || ''}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            updateOpportunityAlerts();
+        }
+
+        function populateOppSpecialtySelect() {
+            const sel = document.getElementById('oppSpecialty');
+            sel.innerHTML = specialtiesConfig.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+        }
+
+        function toDatetimeLocalValue(ms) {
+            const d = new Date(ms);
+            const pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function openOppModal() {
+            document.getElementById('oppModalTitle').innerText = 'Adicionar Encaixe';
+            document.getElementById('oppId').value = '';
+            document.getElementById('oppName').value = '';
+            document.getElementById('oppPhone').value = '';
+            document.getElementById('oppNotes').value = '';
+            populateOppSpecialtySelect();
+            document.getElementById('oppCreatedAt').value = toDatetimeLocalValue(Date.now());
+            document.getElementById('oppModal').style.display = 'flex';
+        }
+
+        function openEditOppModal(id) {
+            const o = opportunities.find(op => op.id === id);
+            if (!o) return;
+            document.getElementById('oppModalTitle').innerText = 'Editar Encaixe';
+            document.getElementById('oppId').value = o.id;
+            document.getElementById('oppName').value = o.name;
+            document.getElementById('oppPhone').value = o.phone;
+            document.getElementById('oppNotes').value = o.notes || '';
+            populateOppSpecialtySelect();
+            document.getElementById('oppSpecialty').value = o.specialty || '';
+            document.getElementById('oppCreatedAt').value = toDatetimeLocalValue(o.createdAt);
+            document.getElementById('oppModal').style.display = 'flex';
+        }
+
+        function closeOppModal() { document.getElementById('oppModal').style.display = 'none'; }
+
+        async function saveOpportunity(e) {
+            e.preventDefault();
+            const editingId = document.getElementById('oppId').value;
+            const payload = {
+                name: document.getElementById('oppName').value,
+                phone: document.getElementById('oppPhone').value,
+                notes: document.getElementById('oppNotes').value,
+                specialty: document.getElementById('oppSpecialty').value,
+                createdAt: new Date(document.getElementById('oppCreatedAt').value).getTime()
+            };
+            if (editingId) {
+                await api('/opportunities/' + editingId, { method: 'PUT', body: JSON.stringify(payload) });
+            } else {
+                await api('/opportunities', { method: 'POST', body: JSON.stringify(payload) });
+            }
+            closeOppModal();
+        }
+
+        async function removeOpportunity(id) {
+            if (!confirm('Tem certeza que deseja remover esta oportunidade?')) return;
+            await api('/opportunities/' + id, { method: 'DELETE' });
+        }
+
+        async function moveOpportunity(idx, dir) {
+            const target = idx + dir;
+            if (target < 0 || target >= opportunities.length) return;
+            const arr = [...opportunities];
+            const temp = arr[idx]; arr[idx] = arr[target]; arr[target] = temp;
+            await api('/opportunities/reorder', { method: 'POST', body: JSON.stringify({ order: arr.map(o => o.id) }) });
+        }
+
+        let draggedOppIndex = null;
+        function dragOppStart(e, idx) {
+            draggedOppIndex = idx;
+            e.dataTransfer.setData('text/plain', idx);
+            setTimeout(() => e.target.classList.add('dragging'), 0);
+        }
+
+        async function dropOppOnItem(e, targetIdx) {
+            e.stopPropagation();
+            e.currentTarget.classList.remove('drag-over');
+            if (draggedOppIndex === null || draggedOppIndex === targetIdx) return;
+            const arr = [...opportunities];
+            const item = arr.splice(draggedOppIndex, 1)[0];
+            arr.splice(targetIdx, 0, item);
+            await api('/opportunities/reorder', { method: 'POST', body: JSON.stringify({ order: arr.map(o => o.id) }) });
+        }
+
+        async function dropOpportunity(e) {
+            e.preventDefault();
+            if (draggedOppIndex === null) return;
+            const arr = [...opportunities];
+            const item = arr.splice(draggedOppIndex, 1)[0];
+            arr.push(item);
+            await api('/opportunities/reorder', { method: 'POST', body: JSON.stringify({ order: arr.map(o => o.id) }) });
+        }
+
+        // ---------------------------------------------------------------
+        // PACIENTES - sincronizado via API + eventos
+        // ---------------------------------------------------------------
+        let draggedPatientIndex = null;
+        function dragPatientStart(e, idx) {
+            draggedPatientIndex = idx;
+            e.dataTransfer.setData('text/plain', idx);
+            setTimeout(() => e.target.classList.add('dragging'), 0);
+        }
+
+        async function dropPatientOnRow(e, targetIdx) {
+            e.stopPropagation();
+            e.currentTarget.classList.remove('drag-over');
+            if (draggedPatientIndex === null || draggedPatientIndex === targetIdx) return;
+            const arr = [...patients];
+            const item = arr.splice(draggedPatientIndex, 1)[0];
+            arr.splice(targetIdx, 0, item);
+            await api('/patients/reorder', { method: 'POST', body: JSON.stringify({ order: arr.map(p => p.id) }) });
+        }
+
+        async function dropPatient(e) {
+            e.preventDefault();
+            if (draggedPatientIndex === null) return;
+            const arr = [...patients];
+            const item = arr.splice(draggedPatientIndex, 1)[0];
+            arr.push(item);
+            await api('/patients/reorder', { method: 'POST', body: JSON.stringify({ order: arr.map(p => p.id) }) });
+        }
+
+        function allowDrop(e) { e.preventDefault(); }
+        function removeDropStyle(e) {
+            if (e.currentTarget.classList) e.currentTarget.classList.remove('drag-over');
+        }
+        function dragEnd(e) {
+            draggedOppIndex = null;
+            draggedPatientIndex = null;
+            document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        }
+
+        function populateSpecialtySelects() {
+            const selSpec = document.getElementById('patSpecialty');
+            if (!selSpec) return;
+            selSpec.innerHTML = specialtiesConfig.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+            updatePhaseOptions();
+        }
+        function updatePhaseOptions() {
+            const specName = document.getElementById('patSpecialty').value;
+            const selPhase = document.getElementById('patPhase');
+            const found = specialtiesConfig.find(s => s.name === specName);
+            selPhase.innerHTML = found ? found.phases.map(p => `<option value="${p}">${p}</option>`).join('') : '';
+        }
+
+        async function togglePinPatient(id) {
+            const p = patients.find(pat => pat.id === id);
+            if (p) {
+                await api('/patients/' + id, { method: 'PUT', body: JSON.stringify({ ...p, pinned: !p.pinned }) });
+            }
+        }
+
+        async function movePatient(index, direction) {
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= patients.length) return;
+            const arr = [...patients];
+            const temp = arr[index]; arr[index] = arr[targetIndex]; arr[targetIndex] = temp;
+            await api('/patients/reorder', { method: 'POST', body: JSON.stringify({ order: arr.map(p => p.id) }) });
+        }
+
+        const PROFESSIONALS = [
+          { id: 'doctor_elizeu', name: 'Dr. Elizeu' },
+          { id: 'doctor_lucas', name: 'Dr. Lucas Domingues' }
+        ];
+
+        function renderPatients() {
+          const container = document.getElementById('patientBlocksContainer');
+          let list = [...patients];
+
+          const filterType = document.getElementById('filterType')?.value || 'all';
+          const filterValueSel = document.getElementById('filterValue');
+          if (filterType !== 'all' && filterValueSel && filterValueSel.value) {
+            const v = filterValueSel.value;
+            if (filterType === 'indication') list = list.filter(p => p.source === v);
+            else if (filterType === 'procedure') list = list.filter(p => p.specialty === v);
+            else if (filterType === 'date') list = list.filter(p => p.nextConsult === v);
+          }
+          renderFilterOptions(filterType);
+
+          document.getElementById('patientCountLabel').innerText = `Total: ${list.length} paciente(s)`;
+
+          container.innerHTML = PROFESSIONALS.map(prof => {
+            const profPatients = list.filter(p => (p.assignedTo || 'doctor_elizeu') === prof.id);
+            return `
+              <div style="margin-top: 16px;">
+                <div style="font-size: 0.9rem; font-weight: 700; color: var(--primary); margin-bottom: 8px;">
+                  ${prof.name} <span style="font-weight: 400; color: var(--text-muted); font-size: 0.8rem;">(${profPatients.length})</span>
+                </div>
+                <div class="table-responsive">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style="width: 120px;">Posição & Arrastar</th>
+                        <th>Paciente / Contato</th>
+                        <th>Início / Origem</th>
+                        <th>Especialidade & Fase</th>
+                        <th>Radiografia / Exame</th>
+                        <th>Próxima Consulta</th>
+                        <th>Observações</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody id="patientTableBody_${prof.id}" ondragover="allowDrop(event)" ondragleave="removeDropStyle(event)" ondrop="dropPatient(event)"></tbody>
+                  </table>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          PROFESSIONALS.forEach(prof => {
+            const tbody = document.getElementById('patientTableBody_' + prof.id);
+            const profPatients = list.filter(p => (p.assignedTo || 'doctor_elizeu') === prof.id);
+            tbody.innerHTML = profPatients.length === 0
+              ? `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhum paciente neste bloco.</td></tr>`
+              : '';
+
+            profPatients.forEach((p) => {
+              const idx = patients.findIndex(pp => pp.id === p.id);
+              let attachmentHtml = `<span class="no-attachment">Nenhum</span>`;
+              if (p.attachment) {
+                attachmentHtml = `<img src="${p.attachment}" class="attachment-thumb" onclick="openImageViewer('${p.attachment}')" title="Clique para ver a radiografia">`;
+              }
+              let pinIcon = p.pinned ? '📌' : '📍';
+              let pinTitle = p.pinned ? 'Fixado (Clique para remover)' : 'Fixar paciente';
+
+              tbody.innerHTML += `
+                <tr draggable="true"
+                    ondragstart="dragPatientStart(event, ${idx})"
+                    ondragover="allowDrop(event)"
+                    ondragenter="this.classList.add('drag-over')"
+                    ondragleave="this.classList.remove('drag-over')"
+                    ondrop="dropPatientOnRow(event, ${idx})"
+                    ondragend="dragEnd(event)">
+                    <td>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <span class="pos-indicator">${idx + 1}</span>
+                            <span class="drag-handle" title="Arraste para mover">⋮⋮</span>
+                            <div class="reorder-btns">
+                                <button class="reorder-btn" onclick="movePatient(${idx}, -1)" title="Mover para cima">▲</button>
+                                <button class="reorder-btn" onclick="movePatient(${idx}, 1)" title="Mover para baixo">▼</button>
+                            </div>
+                            <button class="pin-btn" onclick="togglePinPatient('${p.id}')" title="${pinTitle}" style="font-size:0.9rem; padding:0;">${pinIcon}</button>
+                        </div>
+                    </td>
+                    <td><div class="patient-name">${p.name}</div><a href="https://wa.me/55${p.phone.replace(/\D/g,'')}" target="_blank" class="whatsapp-link">📱 ${p.phone}</a></td>
+                    <td><span class="badge">${p.startDate}</span><br><span class="source-tag">👤 ${p.source}</span></td>
+                    <td><strong>${p.specialty}</strong><br><span style="font-size:0.80rem; color:var(--text-muted);">${p.phase}</span></td>
+                    <td>${attachmentHtml}</td>
+                    <td>📅 ${p.nextConsult || '-'}</td>
+                    <td style="color:var(--text-muted); font-size:0.85rem;">${p.notes || '-'}</td>
+                    <td>
+                      <button class="btn-icon" onclick="openEditPatientModal('${p.id}')" title="Editar">✏️</button>
+                      <button class="btn-icon" onclick="deletePatient('${p.id}')" title="Apagar">🗑️</button>
+                    </td>
+                </tr>
+              `;
+            });
+          });
+        }
+
+        function renderFilterOptions(filterType) {
+            const sel = document.getElementById('filterValue');
+            if (filterType === 'all') { sel.style.display = 'none'; return; }
+            sel.style.display = 'inline-block';
+            let values = [];
+            if (filterType === 'indication') values = [...new Set(patients.map(p => p.source))];
+            else if (filterType === 'procedure') values = [...new Set(patients.map(p => p.specialty))];
+            else if (filterType === 'date') values = [...new Set(patients.map(p => p.nextConsult).filter(Boolean))];
+            const prevVal = sel.value;
+            sel.innerHTML = values.map(v => `<option value="${v}">${v}</option>`).join('');
+            if (values.includes(prevVal)) sel.value = prevVal;
+        }
+
+        function openPatientModal() {
+            document.getElementById('patientForm').reset();
+            document.getElementById('patientModalTitle').innerText = 'Adicionar Paciente';
+            document.getElementById('patientId').value = '';
+            populateSpecialtySelects();
+            document.getElementById('patientModal').style.display = 'flex';
+        }
+        function closePatientModal() { document.getElementById('patientModal').style.display = 'none'; }
+
+        function openEditPatientModal(id) {
+            const p = patients.find(pat => pat.id === id);
+            if (!p) return;
+            document.getElementById('patAttachment').value = '';
+            document.getElementById('patientModalTitle').innerText = 'Editar Paciente';
+            document.getElementById('patientId').value = p.id;
+            document.getElementById('patName').value = p.name;
+            document.getElementById('patPhone').value = p.phone;
+            document.getElementById('patSource').value = p.source;
+            document.getElementById('patAssignedTo').value = p.assignedTo || 'doctor_elizeu';
+            populateSpecialtySelects();
+            document.getElementById('patSpecialty').value = p.specialty;
+            updatePhaseOptions();
+            document.getElementById('patPhase').value = p.phase;
+            document.getElementById('patStartDate').value = p.startDate;
+            document.getElementById('patNextConsult').value = p.nextConsult || '';
+            document.getElementById('patNotes').value = p.notes || '';
+            document.getElementById('patientModal').style.display = 'flex';
+        }
+
+        function openImageViewer(imgSrc) {
+            document.getElementById('viewerImageElement').src = imgSrc;
+            document.getElementById('imageViewerModal').style.display = 'flex';
+        }
+        function closeImageViewer() {
+            document.getElementById('imageViewerModal').style.display = 'none';
+        }
+
+        async function savePatient(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('patAttachment');
+            const editingId = document.getElementById('patientId').value;
+
+            const currentPatient = editingId ? patients.find(p => p.id === editingId) : null;
+
+            const buildPayload = (imageBase64) => ({
+                name: document.getElementById('patName').value,
+                phone: document.getElementById('patPhone').value,
+                source: document.getElementById('patSource').value,
+                specialty: document.getElementById('patSpecialty').value,
+                phase: document.getElementById('patPhase').value,
+                startDate: document.getElementById('patStartDate').value,
+                nextConsult: document.getElementById('patNextConsult').value,
+                notes: document.getElementById('patNotes').value,
+                attachment: imageBase64 || null,
+                pinned: editingId ? (currentPatient?.pinned || false) : false,
+                assignedTo: document.getElementById('patAssignedTo').value
+            });
+
+            const submit = async (imageBase64) => {
+                if (editingId) {
+                    await api('/patients/' + editingId, { method: 'PUT', body: JSON.stringify(buildPayload(imageBase64)) });
+                } else {
+                    await api('/patients', { method: 'POST', body: JSON.stringify(buildPayload(imageBase64)) });
+                }
+                closePatientModal();
+            };
+
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(uploadEvent) { submit(uploadEvent.target.result); };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                await submit(null);
+            }
+        }
+
+        async function deletePatient(id) {
+            if (!confirm('Tem certeza que deseja apagar este paciente? O histórico será perdido.')) return;
+            await api('/patients/' + id, { method: 'DELETE' });
+        }
+
+        // ---------------------------------------------------------------
+        // Carregamento inicial e eventos de sincronização em tempo real
+        // ---------------------------------------------------------------
+        async function loadPatients() { patients = await api('/patients'); renderPatients(); }
+        async function loadOpportunities() { opportunities = await api('/opportunities'); renderOpportunities(); }
+        async function loadSpecialties() { specialtiesConfig = await api('/specialties'); populateSpecialtySelects(); renderOpportunities(); }
+        async function loadSettings() { appSettings = await api('/settings'); }
+        async function loadMessages() {
+            chatMessages = await api('/messages');
+            updateGlobalChatBadge();
+            if (document.getElementById('chatModal').style.display === 'flex') renderChatMessages();
+        }
+
+        socket.on('patients:changed', loadPatients);
+        socket.on('opportunities:changed', loadOpportunities);
+        socket.on('specialties:changed', () => { loadSpecialties(); if (document.getElementById('settingsModal').style.display === 'flex') renderSettingsSpecialties(); });
+        socket.on('settings:changed', () => { loadSettings().then(renderOpportunities); });
+
+        async function boot() {
+            if (!currentUser) { openLoginModal(); }
+            else { initUserSession(); }
+            await Promise.all([loadPatients(), loadOpportunities(), loadSpecialties(), loadMessages(), loadSettings()]);
+        }
+        boot();
+    </script>
+</body>
+</html>
